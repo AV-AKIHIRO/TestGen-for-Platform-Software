@@ -1,6 +1,5 @@
 @echo off
-REM Batch file wrapper for Maven compile (via WSL)
-REM This is now a simple wrapper around Maven
+REM Batch file to compile using javac directly (no Maven dependency)
 REM Run from project root or scripts folder
 
 setlocal
@@ -10,11 +9,23 @@ cd /d "%~dp0.."
 
 echo.
 echo ========================================
-echo   Compiling with Maven (via WSL)
+echo   Compiling with javac (direct)
 echo ========================================
 echo.
 
-wsl mvn compile
+REM Check if target directory exists, create if not
+if not exist "target\classes" (
+    echo Creating target\classes directory...
+    mkdir target\classes
+)
+
+REM Compile Java files
+javac -d target/classes -sourcepath src/main/java ^
+    src/main/java/in/ac/iiitb/plproject/ast/*.java ^
+    src/main/java/in/ac/iiitb/plproject/parser/ast/*.java ^
+    src/main/java/in/ac/iiitb/plproject/parser/*.java ^
+    src/main/java/in/ac/iiitb/plproject/atc/*.java ^
+    src/main/java/in/ac/iiitb/plproject/symex/*.java
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

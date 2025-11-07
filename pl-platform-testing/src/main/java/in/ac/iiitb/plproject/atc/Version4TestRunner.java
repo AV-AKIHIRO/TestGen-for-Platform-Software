@@ -1,4 +1,4 @@
-package in.ac.iiitb.plproject.ast;
+package in.ac.iiitb.plproject.atc;
 
 /**
  * Simple test runner for Version4 algorithm.

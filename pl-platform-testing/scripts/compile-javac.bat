@@ -23,7 +23,9 @@ REM Compile Java files
 javac -d target/classes -sourcepath src/main/java ^
     src/main/java/in/ac/iiitb/plproject/ast/*.java ^
     src/main/java/in/ac/iiitb/plproject/parser/ast/*.java ^
-    src/main/java/in/ac/iiitb/plproject/atc/*.java
+    src/main/java/in/ac/iiitb/plproject/parser/*.java ^
+    src/main/java/in/ac/iiitb/plproject/atc/*.java ^
+    src/main/java/in/ac/iiitb/plproject/symex/*.java
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

@@ -3,8 +3,10 @@ package in.ac.iiitb.plproject.atc;
 import in.ac.iiitb.plproject.parser.ast.JmlFunctionSpec;
 import in.ac.iiitb.plproject.parser.ast.JmlSpecAst;
 import in.ac.iiitb.plproject.parser.ast.TestStringAst;
-import org.junit.Test;
-import gov.nasa.jpf.symbc.Debug;
+// Note: org.junit.Test and gov.nasa.jpf.symbc.Debug are external dependencies
+// They are only used in generated code strings, not in this compilation unit
+// import org.junit.Test;
+// import gov.nasa.jpf.symbc.Debug;
 import java.lang.StringBuilder;
 // Skeleton for LibTestGenATC (based on img2.jpeg)
 public class LibTestGenATC implements GenATC {
@@ -64,7 +66,10 @@ public class LibTestGenATC implements GenATC {
         // Step B: Translate Preconditions (@requires) to 'assume'
         // This aligns with Phase 4 
         func.append("\n        // 2. Set JML preconditions\n");
-        String preCondition = spec.getPrecondition().toJavaCode(); // e.g., "true"
+        // Note: getPrecondition() returns Object, need to convert to string representation
+        // For now, using a placeholder - this should be implemented based on your AST structure
+        Object preConditionObj = spec.getPrecondition();
+        String preCondition = (preConditionObj != null) ? preConditionObj.toString() : "true"; // e.g., "true"
         func.append("        Debug.assume(").append(preCondition).append(");\n");
         
         // Step C: Snapshot "Old" State (Handling Primed Vars)
