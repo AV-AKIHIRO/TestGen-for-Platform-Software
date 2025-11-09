@@ -127,6 +127,25 @@ class MethodCallExpr extends Expr {
     @Override public String toString() { return (scope != null ? scope + "." : "") + name + "(" + args + ")"; }
 }
 
+class UnaryExpr extends Expr {
+    public enum Operator {
+        LOGICAL_COMPLEMENT, // !
+        MINUS, // - (unary minus)
+        PLUS // + (unary plus)
+    }
+    final Expr expr;
+    final Operator op;
+    public UnaryExpr(Expr expr, Operator op) {
+        this.expr = expr;
+        this.op = op;
+    }
+    @Override public String toString() {
+        String opStr = op == Operator.LOGICAL_COMPLEMENT ? "!" : 
+                       op == Operator.MINUS ? "-" : "+";
+        return opStr + expr;
+    }
+}
+
 // ===================================
 // Types
 // ===================================

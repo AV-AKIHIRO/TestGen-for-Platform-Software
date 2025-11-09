@@ -118,5 +118,41 @@ public class AstHelper {
     public static IntegerLiteralExpr createIntegerLiteralExpr(int value) {
         return new IntegerLiteralExpr(value);
     }
+
+    /**
+     * Create a UnaryExpr.
+     */
+    public static UnaryExpr createUnaryExpr(Object expr, String operatorName) {
+        UnaryExpr.Operator op = UnaryExpr.Operator.valueOf(operatorName);
+        return new UnaryExpr((Expr) expr, op);
+    }
+
+    /**
+     * Combine multiple expressions with AND operator.
+     * Useful for combining multiple requires/ensures clauses.
+     */
+    public static Object combineExpressionsWithAnd(List<Object> expressions) {
+        if (expressions == null || expressions.isEmpty()) {
+            return null;
+        }
+        if (expressions.size() == 1) {
+            return expressions.get(0);
+        }
+        // Combine all expressions with AND: expr1 && expr2 && expr3 ...
+        Object result = expressions.get(0);
+        for (int i = 1; i < expressions.size(); i++) {
+            result = createBinaryExpr(result, expressions.get(i), "AND");
+        }
+        return result;
+    }
+
+    /**
+     * Combine two expressions with AND operator.
+     */
+    public static Object combineWithAnd(Object left, Object right) {
+        if (left == null) return right;
+        if (right == null) return left;
+        return createBinaryExpr(left, right, "AND");
+    }
 }
 
