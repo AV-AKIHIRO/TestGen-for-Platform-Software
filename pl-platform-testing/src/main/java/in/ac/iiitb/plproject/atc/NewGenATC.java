@@ -95,9 +95,9 @@ public class NewGenATC implements GenATC {
         // I will add a placeholder for isStatic and isMain, assuming they are part of the AtcTestMethod or a new AtcMainMethod class.
         // For simplicity now, let's assume AtcTestMethod has a constructor to signify a main method.
         // If it doesn't, we will need to explore the 'ir' package further.
-        AtcTestMethod mainMethod = new AtcTestMethod("main", mainMethodStatements, true, true); // true for static, true for main
-        actualTestMethods.add(mainMethod);
-        
+        // AtcTestMethod mainMethod = new AtcTestMethod("main", mainMethodStatements, true, true); // true for static, true for main
+        // actualTestMethods.add(mainMethod); // Removed to avoid duplicate main()
+
         String packageName = "in.ac.iiitb.plproject.atc.generated"; // Assuming a default generated package
         String className = "GeneratedATCs";
         String runWithAnnotation = null; // No @RunWith for now, can be added later if needed
