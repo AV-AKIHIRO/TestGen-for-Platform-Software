@@ -60,13 +60,14 @@ public class IncrementalTestExample {
             // Create a mock JML function spec
             // In real implementation, this would come from the JML parser
             JmlFunctionSpec spec = createMockIncrementSpec();
+            JmlFunctionSpec spec2 = createMockProcessSpec();
             
-            List<JmlFunctionSpec> specs = Arrays.asList(spec);
+            List<JmlFunctionSpec> specs = Arrays.asList(spec,spec2);
             JmlSpecAst jmlSpecAst = new JmlSpecAst(specs);
             
             // Create test string: test increment function
             TestStringAst testStringAst = new TestStringAst(
-                Arrays.asList("increment", "increment", "increment")
+                Arrays.asList("increment", "increment","process", "increment")
             );
             
             // Print the JML Spec AST for debugging

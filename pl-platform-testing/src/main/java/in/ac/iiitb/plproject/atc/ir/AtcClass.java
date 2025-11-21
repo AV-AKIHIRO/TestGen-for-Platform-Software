@@ -7,17 +7,19 @@ import java.util.List;
  * This is the root of your new IR.
  */
 public class AtcClass {
-    public String packageName;
-    public String className;
-    public List<String> imports;
-    public List<AtcTestMethod> testMethods;
-    public String runWithAnnotationClass; // e.g., "gov.nasa.jpf.symbc.SymbolicClasspathRunner.class"
+    private String packageName;
+    private String className;
+    private List<String> imports;
+    private List<AtcTestMethod> testMethods; // Now includes helper methods
+    private List<AtcStatement> mainMethodStatements; // New field for main method calls
+    private String runWithAnnotationClass;
 
-    public AtcClass(String packageName, String className, List<String> imports, List<AtcTestMethod> testMethods, String runWithAnnotationClass) {
+    public AtcClass(String packageName, String className, List<String> imports, List<AtcTestMethod> testMethods, List<AtcStatement> mainMethodStatements, String runWithAnnotationClass) {
         this.packageName = packageName;
         this.className = className;
         this.imports = imports;
         this.testMethods = testMethods;
+        this.mainMethodStatements = mainMethodStatements; // Initialize new field
         this.runWithAnnotationClass = runWithAnnotationClass;
     }
 
@@ -39,6 +41,10 @@ public class AtcClass {
 
     public String getRunWithAnnotationClass() {
         return runWithAnnotationClass;
+    }
+
+    public List<AtcStatement> getMainMethodStatements() {
+        return mainMethodStatements;
     }
 
     @Override

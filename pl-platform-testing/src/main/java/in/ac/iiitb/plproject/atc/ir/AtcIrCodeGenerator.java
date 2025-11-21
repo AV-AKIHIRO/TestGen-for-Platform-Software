@@ -139,15 +139,26 @@ public class AtcIrCodeGenerator {
         stringBuilder.append("\n");
         stringBuilder.append(INDENT).append("public static void main(String[] args) {\n");
 
-        // Instantiate the generated class to call non-static test methods
-        stringBuilder.append(INDENT).append(INDENT)
-                     .append(atc.getClassName()).append(" instance = new ").append(atc.getClassName()).append("();\n");
+        // The instantiation of 'instance' is now handled as part of mainMethodStatements
+        // from NewGenATC.java. Removing this line to prevent duplication.
+        // stringBuilder.append(INDENT).append(INDENT)
+        //              .append(atc.getClassName()).append(" instance = new ").append(atc.getClassName()).append("();\n");
 
-        // Simple main method - no JPF-specific code
-
-        for (AtcTestMethod method : atc.getTestMethods()) {
-            stringBuilder.append(INDENT).append(INDENT)
-                         .append("instance.").append(method.getMethodName()).append("();\n");
+        // Use the pre-constructed main method statements
+        for (AtcStatement statement : atc.getMainMethodStatements()) {
+            // Assuming AtcMethodCallStmt is the only type of statement here for simplicity
+            // A more robust solution might use a visitor pattern for different statement types
+            if (statement instanceof AtcMethodCallStmt) {
+                String callCode = AstHelper.exprToJavaCode(((AtcMethodCallStmt) statement).getCallExpr());
+                stringBuilder.append(INDENT).append(INDENT)
+                             .append(callCode).append(";\n"); // MethodCallExpr already includes 'instance.' and method name
+            } else if (statement instanceof AtcVarDecl) {
+                String initCode = AstHelper.exprToJavaCode(((AtcVarDecl) statement).getInitExpr());
+                stringBuilder.append(INDENT).append(INDENT)
+                             .append(((AtcVarDecl) statement).getTypeName()).append(" ")
+                             .append(((AtcVarDecl) statement).getVarName()).append(" = ")
+                             .append(initCode).append(";\n");
+            }
         }
         stringBuilder.append(INDENT).append("}\n");
     }

@@ -7,6 +7,8 @@ import in.ac.iiitb.plproject.ast.AstHelper;
 import in.ac.iiitb.plproject.ast.Expr;
 import in.ac.iiitb.plproject.atc.ir.AtcClass;
 import in.ac.iiitb.plproject.atc.ir.AtcIrCodeGenerator;
+import in.ac.iiitb.plproject.atc.ir.AtcTestMethod;
+import in.ac.iiitb.plproject.atc.ir.AtcStatement;
 // Note: org.junit.Test and gov.nasa.jpf.symbc.Debug are external dependencies
 // They are only used in generated code strings, not in this compilation unit
 // import org.junit.Test;
@@ -58,7 +60,7 @@ public class LibTestGenATC implements GenATC {
         List<String> imports = new ArrayList<>();
         imports.add("gov.nasa.jpf.symbc.Debug");
         imports.add("your.project.Stack");
-        return new AtcClass("", "GeneratedATCs", imports, new ArrayList<>(), null);
+        return new AtcClass("", "GeneratedATCs", imports, new ArrayList<AtcTestMethod>(), new ArrayList<AtcStatement>(), null);
     }
 
     /**

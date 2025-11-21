@@ -102,7 +102,7 @@ public class NewGenATC implements GenATC {
         String className = "GeneratedATCs";
         String runWithAnnotation = null; // No @RunWith for now, can be added later if needed
 
-        return new AtcClass(packageName, className, imports, actualTestMethods, runWithAnnotation);
+        return new AtcClass(packageName, className, imports, actualTestMethods, mainMethodStatements, runWithAnnotation);
     }
   
     private AtcTestMethod generateHelperFunction(JmlFunctionSpec spec) {

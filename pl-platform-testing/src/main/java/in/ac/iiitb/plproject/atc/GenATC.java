@@ -10,8 +10,7 @@ public interface GenATC {
     /**
      * Generates a complete, runnable Java test file (the ATC)
      * from JML specs and a test string.
-     *
-     * @param jmlSpecAst The full set of parsed JML specs (e.g., STACK specs).
+clear     * @param jmlSpecAst The full set of parsed JML specs (e.g., STACK specs).
      * @param testStringAst The sequence of operations to test (e.g., PUSH_OK, POP_OK).
      * @return An AtcClass IR object containing the generated test code structure.
      */
