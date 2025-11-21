@@ -67,11 +67,7 @@ public class IncrementalTestExample {
             
             // Create test string: test increment function
             TestStringAst testStringAst = new TestStringAst(
-<<<<<<< HEAD
                 Arrays.asList("increment", "increment","process", "increment")
-=======
-                Arrays.asList("increment", "increment","process" ,"increment")
->>>>>>> ebf98494e9c32ea72f1b9e14637a0e99b0f89ca2
             );
             
             // Print the JML Spec AST for debugging
