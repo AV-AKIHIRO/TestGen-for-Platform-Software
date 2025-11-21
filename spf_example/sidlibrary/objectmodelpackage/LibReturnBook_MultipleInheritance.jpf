@@ -1,0 +1,28 @@
+# Target class for testing multiple inheritance via interfaces
+target = sidlibrary.objectmodelpackage.LibReturnBook
+
+# Set the classpath to point to your compiled classes
+classpath = ${jpf-symbc}/build/examples
+
+# Path to source code
+sourcepath = ${jpf-symbc}/src/examples
+
+# Define symbolic variables in the method under test
+symbolic.method = sidlibrary.objectmodelpackage.LibReturnBook.testMultipleInheritance()
+
+# Symbolic string variables created via Debug.makeSymbolicString
+symbolic.string_dp = true
+
+# Integer ranges
+symbolic.minint = -100
+symbolic.maxint = 100
+symbolic.undefined = -1000
+
+# Coverage listener
+listener = gov.nasa.jpf.symbc.sequences.SymbolicSequenceListener,gov.nasa.jpf.listener.CoverageAnalyzer
+
+# Show method coverage
+coverage.include = *.LibReturnBook
+coverage.show_methods = true
+coverage.show_bodies = true
+

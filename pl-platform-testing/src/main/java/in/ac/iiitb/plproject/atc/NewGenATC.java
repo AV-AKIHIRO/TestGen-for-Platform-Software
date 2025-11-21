@@ -2,6 +2,7 @@ package in.ac.iiitb.plproject.atc;
 
 import in.ac.iiitb.plproject.parser.ast.*; // JmlFunctionSpec, JmlSpecAst, TestStringAst, Variable, FunctionSignature
 import in.ac.iiitb.plproject.ast.AstHelper;
+import in.ac.iiitb.plproject.ast.Expr;
 import java.util.*;
 import in.ac.iiitb.plproject.atc.ir.*; // Import all IR classes
 
@@ -146,7 +147,7 @@ public class NewGenATC implements GenATC {
         }
         // --- 3. Snapshot Old State (Algorithm Step 4) ---
         // func.append("\n        // 2. Snapshot 'old' state for postconditions\n");
-        Object post = spec.getPostcondition();
+        Expr post = spec.getPostcondition();
         
         // This helper finds all "pre-state" vars in the post-condition
         Set<String> varsToSnapshot = collectVarsToSnapshot(post);
@@ -173,14 +174,14 @@ public class NewGenATC implements GenATC {
         }
         // --- 4. Translate Preconditions (Algorithm Step 3) ---
         // func.append("\n        // 3. Set JML preconditions\n");
-        Object pre = spec.getPrecondition();
+        Expr pre = spec.getPrecondition();
         if (pre != null) {
             // Old string generation logic commented out
             // String preCode = exprToJavaCode(pre);
             // func.append("        Debug.assume(").append(preCode).append(");\n");
             
             // New IR statement
-            statements.add(new AtcAssumeStmt((in.ac.iiitb.plproject.ast.Expr)pre)); // Cast to Expr
+            statements.add(new AtcAssumeStmt(pre));
         } else {
             // If no precondition, assume true
             // func.append("        Debug.assume(true);\n");
@@ -217,14 +218,14 @@ public class NewGenATC implements GenATC {
         // func.append("\n        // 5. Assert JML postconditions\n");
         if (post != null) {
             // Transform the post-condition AST:
-            Object transformedPost = transformPostCondition(post, resultVarName, oldStateMap, params);
+            Expr transformedPost = transformPostCondition(post, resultVarName, oldStateMap, params);
             
             // Old string generation logic commented out
             // String postCode = exprToJavaCode(transformedPost);
             // func.append("        assert(").append(postCode).append(");\n");
             
             // New IR statement
-            statements.add(new AtcAssertStmt((in.ac.iiitb.plproject.ast.Expr)transformedPost)); // Cast to Expr
+            statements.add(new AtcAssertStmt(transformedPost));
         }
         // func.append("    }\n");
         // return func.toString();
@@ -247,10 +248,10 @@ public class NewGenATC implements GenATC {
      * This finds all variables in the post-condition that *do not* end in "_post".
      * Delegates to AstHelper.
      */
-    private Set<String> collectVarsToSnapshot(Object expr) {
+    private Set<String> collectVarsToSnapshot(Expr expr) {
         // For "x_post > x", this should return {"x"}
         // For "result_post == update(result, data)", it returns {"result", "data"}
-        return AstHelper.collectVarsToSnapshot((in.ac.iiitb.plproject.ast.Expr)expr); // Cast to Expr
+        return AstHelper.collectVarsToSnapshot(expr);
     }
     /**
      * Helper method to transform post-condition expressions.
@@ -262,12 +263,12 @@ public class NewGenATC implements GenATC {
      * @param params The list of function parameters (to find in-place modification targets)
      * @return A new, transformed AST
      */
-    private Object transformPostCondition(Object expr, String resultVarName, Map<String, String> oldStateMap, List<Variable> params) {
+    private Expr transformPostCondition(Expr expr, String resultVarName, Map<String, String> oldStateMap, List<Variable> params) {
         // This helper must be smart.
         // 1. If it sees "x_post", and return is void, it replaces it with "x".
         // 2. If it sees "x_post", and return is non-void, it replaces it with "result".
         // 3. If it sees "x" (and "x" is in oldStateMap), it replaces it with "old_x".
-        return AstHelper.transformPostCondition((in.ac.iiitb.plproject.ast.Expr)expr, resultVarName, oldStateMap, params); // Cast to Expr
+        return (Expr) AstHelper.transformPostCondition(expr, resultVarName, oldStateMap, params);
     }
 }
 

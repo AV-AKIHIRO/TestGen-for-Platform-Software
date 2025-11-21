@@ -185,7 +185,10 @@ public class IncrementalTestExample {
             "GREATER_THAN"
         );
         
-        return new JmlFunctionSpec("increment", signature, pre, post);
+        // Cast Object to Expr for constructor
+        return new JmlFunctionSpec("increment", signature, 
+            (in.ac.iiitb.plproject.ast.Expr)pre, 
+            (in.ac.iiitb.plproject.ast.Expr)post);
     }
 
     /**
@@ -223,7 +226,10 @@ public class IncrementalTestExample {
             "EQUALS"
         );
         
-        return new JmlFunctionSpec("process", signature, pre, post);
+        // Cast Object to Expr for constructor
+        return new JmlFunctionSpec("process", signature, 
+            (in.ac.iiitb.plproject.ast.Expr)pre, 
+            (in.ac.iiitb.plproject.ast.Expr)post);
     }
     
     // ===================================
