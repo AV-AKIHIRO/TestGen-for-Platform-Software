@@ -19,6 +19,7 @@ vm.insn_factory.class = gov.nasa.jpf.symbc.SymbolicInstructionFactory
 # Enable symbolic array handling (needed for array operations)
 symbolic.arrays = true
 
+
 # Integer ranges
 symbolic.minint = -100
 symbolic.maxint = 100

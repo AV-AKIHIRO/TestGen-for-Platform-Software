@@ -8,7 +8,7 @@ classpath = ${jpf-symbc}/build/examples
 sourcepath = ${jpf-symbc}/src/examples
 
 # Define symbolic variables in the method under test
-symbolic.method = in.ac.iiitb.plproject.atc.generated.GeneratedATCs.increment_helper()
+symbolic.method = in.ac.iiitb.plproject.atc.generated.GeneratedATCs.process_helper()
 
 # Symbolic string variables created via Debug.makeSymbolicString
 symbolic.string_dp = true

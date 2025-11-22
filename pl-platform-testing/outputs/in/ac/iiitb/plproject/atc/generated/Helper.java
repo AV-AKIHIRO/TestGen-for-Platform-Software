@@ -21,6 +21,9 @@ public class Helper {
     }
 
     public static Map<?,?> update(Map<Integer, Integer> result, Set<Integer> data) {
+        if (result == null) {
+            return new HashMap<>();
+        }
         Map<Integer, Integer> updated = new HashMap<>(result);
         if (data != null) {
             for (Integer item : data) {

@@ -68,21 +68,37 @@ public class NewGenATC implements GenATC {
             statements.add(new AtcSymbolicVarDecl(type, name));
         }
         
+        // Store precondition and postcondition
         Expr pre = spec.getPrecondition();
-        if (pre != null) {
-            statements.add(new AtcAssumeStmt(pre));
-        } else {
-            statements.add(new AtcAssumeStmt(AstHelper.createBooleanLiteralExpr(true)));
+        Expr post = spec.getPostcondition();
+        
+        // Check if we have collection parameters
+        List<String> collectionParams = new ArrayList<>();
+        for (String pName : paramNames) {
+            String paramType = getParamType(pName, params);
+            String baseType = paramType;
+            if (paramType.contains("<")) {
+                baseType = paramType.substring(0, paramType.indexOf("<"));
+            }
+            if (TypeMapper.isCollectionType(baseType)) {
+                collectionParams.add(pName);
+            }
         }
         
-        Expr post = spec.getPostcondition();
+        // For primitive-only methods: add precondition first, then snapshot old state
+        // For collection methods: add null checks first, then precondition
+        if (collectionParams.isEmpty() && pre != null) {
+            statements.add(new AtcAssumeStmt(pre));
+        }
+        
         Set<String> varsToSnapshot = collectVarsToSnapshot(post);
+        // Filter out "null" and other literals that shouldn't be snapshotted
+        varsToSnapshot.remove("null");
         Map<String, String> oldStateMap = new HashMap<>();
         
+        // Only snapshot primitive types that need old state
+        // For collections, we don't need to snapshot them as _old since they're passed by reference
         for (String varName : varsToSnapshot) {
-            String oldVarName = varName + "_old";
-            oldStateMap.put(varName, oldVarName);
-            
             String varType = "Object";
             for (Variable p : params) {
                 if (p.getName().equals(varName)) {
@@ -91,31 +107,76 @@ public class NewGenATC implements GenATC {
                 }
             }
             
-            String baseType = varType;
-            if (varType.contains("<")) {
-                baseType = varType.substring(0, varType.indexOf("<"));
-            }
-            
-            if (baseType.equals("Set")) {
-                List<Object> constructorArgs = new ArrayList<>();
-                constructorArgs.add(AstHelper.createNameExpr(varName));
-                String genericType = TypeMapper.getGenericType(varType);
-                statements.add(new AtcVarDecl(genericType, oldVarName, 
-                    AstHelper.createObjectCreationExpr("HashSet", constructorArgs)));
-            } else if (baseType.equals("Map")) {
-                List<Object> constructorArgs = new ArrayList<>();
-                constructorArgs.add(AstHelper.createNameExpr(varName));
-                String genericType = TypeMapper.getGenericType(varType);
-                statements.add(new AtcVarDecl(genericType, oldVarName, 
-                    AstHelper.createObjectCreationExpr("HashMap", constructorArgs)));
-            } else {
+            // Only snapshot primitive types
+            if (isPrimitiveType(varType)) {
+                String oldVarName = varName + "_old";
+                oldStateMap.put(varName, oldVarName);
                 statements.add(new AtcVarDecl(varType, oldVarName, AstHelper.createNameExpr(varName)));
             }
         }
         
+        // Add null check return statement if we have collection params
+        // Create: if (data == null || result == null) { return; }
+        if (!collectionParams.isEmpty()) {
+            List<Object> nullCheckConditions = new ArrayList<>();
+            for (String pName : collectionParams) {
+                nullCheckConditions.add(AstHelper.createBinaryExpr(
+                    AstHelper.createNameExpr(pName),
+                    AstHelper.createNameExpr("null"),
+                    "EQUALS"
+                ));
+            }
+            Expr nullCheckCondition = (Expr) nullCheckConditions.get(0);
+            for (int i = 1; i < nullCheckConditions.size(); i++) {
+                nullCheckCondition = AstHelper.createBinaryExpr(
+                    nullCheckCondition,
+                    (Expr) nullCheckConditions.get(i),
+                    "OR"
+                );
+            }
+            // Add if statement with return
+            statements.add(new AtcIfStmt(nullCheckCondition, new ArrayList<>(), true));
+            
+            // Add assumes for collection parameters (after null check)
+            for (String pName : collectionParams) {
+                Expr notNullCondition = AstHelper.createBinaryExpr(
+                    AstHelper.createNameExpr(pName),
+                    AstHelper.createNameExpr("null"),
+                    "NOT_EQUALS"
+                );
+                statements.add(new AtcAssumeStmt(notNullCondition));
+            }
+        }
+        
+        // Add precondition assume after null checks (if it exists and not already added)
+        // Only add if we have collection params (primitive-only methods already have it)
+        if (!collectionParams.isEmpty() && pre != null) {
+            statements.add(new AtcAssumeStmt(pre));
+        }
+        
+        // Add print statements for collection parameters (only first input collection, not output ones)
+        boolean printedCollection = false;
         for (String pName : paramNames) {
             String paramType = getParamType(pName, params);
-            if (isPrimitiveType(paramType) || paramType.equals("String")) {
+            String baseType = paramType;
+            if (paramType.contains("<")) {
+                baseType = paramType.substring(0, paramType.indexOf("<"));
+            }
+            if (TypeMapper.isCollectionType(baseType) && !printedCollection) {
+                // Print actual variable value, not string literal
+                // Only print the first collection parameter (typically the input, not output)
+                Object printlnArg = AstHelper.createBinaryExpr(
+                    AstHelper.createStringLiteralExpr("Test Input: " + pName + " = "),
+                    AstHelper.createNameExpr(pName),
+                    "PLUS"
+                );
+                in.ac.iiitb.plproject.ast.MethodCallExpr printlnCall = AstHelper.createMethodCallExpr(
+                    AstHelper.createNameExpr("System.out"), "println", 
+                    Arrays.asList(printlnArg)
+                );
+                statements.add(new AtcMethodCallStmt(printlnCall));
+                printedCollection = true;
+            } else if (isPrimitiveType(paramType) || paramType.equals("String")) {
                 Object printlnArg = AstHelper.createBinaryExpr(
                     AstHelper.createStringLiteralExpr("Test Input: " + pName + " = "),
                     AstHelper.createNameExpr(pName),
@@ -171,10 +232,54 @@ public class NewGenATC implements GenATC {
             }
             in.ac.iiitb.plproject.ast.MethodCallExpr callExpr = AstHelper.createMethodCallExpr(
                 AstHelper.createNameExpr("Helper"), functionName, callArgs);
-            statements.add(new AtcMethodCallStmt(callExpr));
+            
+            // Wrap method call and assertion in if statement for collection parameters
+            if (!collectionParams.isEmpty()) {
+                List<Object> notNullConditions = new ArrayList<>();
+                for (String pName : collectionParams) {
+                    notNullConditions.add(AstHelper.createBinaryExpr(
+                        AstHelper.createNameExpr(pName),
+                        AstHelper.createNameExpr("null"),
+                        "NOT_EQUALS"
+                    ));
+                }
+                Expr notNullCondition = (Expr) notNullConditions.get(0);
+                for (int i = 1; i < notNullConditions.size(); i++) {
+                    notNullCondition = AstHelper.createBinaryExpr(
+                        notNullCondition,
+                        (Expr) notNullConditions.get(i),
+                        "AND"
+                    );
+                }
+                
+                List<AtcStatement> ifBody = new ArrayList<>();
+                ifBody.add(new AtcMethodCallStmt(callExpr));
+                
+                statements.add(new AtcIfStmt(notNullCondition, ifBody, false));
+                
+                // Add print and assertion outside if block for collection params
+                Object printlnArg = AstHelper.createStringLiteralExpr("Test Input: Helper." + functionName + " completed");
+                in.ac.iiitb.plproject.ast.MethodCallExpr printlnCall = AstHelper.createMethodCallExpr(
+                    AstHelper.createNameExpr("System.out"), "println", 
+                    Arrays.asList(printlnArg)
+                );
+                statements.add(new AtcMethodCallStmt(printlnCall));
+                
+                if (post != null) {
+                    Expr transformedPost = transformPostCondition(post, resultVarName, oldStateMap, params);
+                    statements.add(new AtcAssertStmt(transformedPost));
+                }
+            } else {
+                statements.add(new AtcMethodCallStmt(callExpr));
+                if (post != null) {
+                    Expr transformedPost = transformPostCondition(post, resultVarName, oldStateMap, params);
+                    statements.add(new AtcAssertStmt(transformedPost));
+                }
+            }
         }
         
-        if (post != null) {
+        // Add assertion for primitive postStateParam case
+        if (postStateParam != null && isPrimitiveType(getParamType(postStateParam, params)) && post != null) {
             Expr transformedPost = transformPostCondition(post, resultVarName, oldStateMap, params);
             statements.add(new AtcAssertStmt(transformedPost));
         }

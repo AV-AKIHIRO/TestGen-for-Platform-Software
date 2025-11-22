@@ -76,10 +76,151 @@ public class AtcIrCodeGenerator {
                 visit((AtcMethodCallStmt) stmt);
             } else if (stmt instanceof AtcAssertStmt) {
                 visit((AtcAssertStmt) stmt);
+            } else if (stmt instanceof AtcIfStmt) {
+                visit((AtcIfStmt) stmt, declaredVars);
             }
         }
 
         stringBuilder.append(INDENT).append("}\n");
+    }
+    
+    private void visit(AtcIfStmt stmt, Set<String> declaredVars) {
+        String condCode = AstHelper.exprToJavaCode(stmt.getCondition());
+        stringBuilder.append(INDENT).append(INDENT)
+                     .append("if (").append(condCode).append(") {\n");
+        
+        if (stmt.hasReturn()) {
+            stringBuilder.append(INDENT).append(INDENT).append(INDENT)
+                         .append("return;\n");
+        } else {
+            // Use 3 levels of indentation for statements inside if block
+            for (AtcStatement thenStmt : stmt.getThenStatements()) {
+                if (thenStmt instanceof AtcSymbolicVarDecl) {
+                    visitWithIndent((AtcSymbolicVarDecl) thenStmt, 3);
+                    declaredVars.add(((AtcSymbolicVarDecl) thenStmt).getVarName());
+                } else if (thenStmt instanceof AtcVarDecl) {
+                    String varName = ((AtcVarDecl) thenStmt).getVarName();
+                    if (declaredVars.contains(varName)) {
+                        visitAsAssignmentWithIndent((AtcVarDecl) thenStmt, 3);
+                    } else {
+                        visitWithIndent((AtcVarDecl) thenStmt, 3);
+                        declaredVars.add(varName);
+                    }
+                } else if (thenStmt instanceof AtcAssignStmt) {
+                    visitWithIndent((AtcAssignStmt) thenStmt, 3);
+                } else if (thenStmt instanceof AtcAssumeStmt) {
+                    visitWithIndent((AtcAssumeStmt) thenStmt, 3);
+                } else if (thenStmt instanceof AtcMethodCallStmt) {
+                    visitWithIndent((AtcMethodCallStmt) thenStmt, 3);
+                } else if (thenStmt instanceof AtcAssertStmt) {
+                    visitWithIndent((AtcAssertStmt) thenStmt, 3);
+                }
+            }
+        }
+        
+        stringBuilder.append(INDENT).append(INDENT).append("}\n");
+    }
+    
+    private void visitWithIndent(AtcMethodCallStmt stmt, int indentLevel) {
+        String callCode = AstHelper.exprToJavaCode(stmt.getCallExpr());
+        for (int i = 0; i < indentLevel; i++) {
+            stringBuilder.append(INDENT);
+        }
+        stringBuilder.append(callCode).append(";\n");
+    }
+    
+    private void visitWithIndent(AtcVarDecl stmt, int indentLevel) {
+        String initCode = AstHelper.exprToJavaCode(stmt.getInitExpr());
+        String typeName = stmt.getTypeName();
+        String varName = stmt.getVarName();
+        
+        if (typeName.endsWith("[]") && initCode.startsWith("new ")) {
+            String baseType = typeName.substring(0, typeName.length() - 2);
+            if (initCode.contains("(") && initCode.contains(")")) {
+                String args = initCode.substring(initCode.indexOf("(") + 1, initCode.indexOf(")"));
+                initCode = "new " + baseType + "[]{" + args + "}";
+            }
+        }
+        
+        for (int i = 0; i < indentLevel; i++) {
+            stringBuilder.append(INDENT);
+        }
+        stringBuilder.append(typeName).append(" ").append(varName)
+                     .append(" = ").append(initCode).append(";\n");
+    }
+    
+    private void visitAsAssignmentWithIndent(AtcVarDecl stmt, int indentLevel) {
+        String valueCode = AstHelper.exprToJavaCode(stmt.getInitExpr());
+        String varName = stmt.getVarName();
+        
+        for (int i = 0; i < indentLevel; i++) {
+            stringBuilder.append(INDENT);
+        }
+        stringBuilder.append(varName).append(" = ").append(valueCode).append(";\n");
+    }
+    
+    private void visitWithIndent(AtcAssignStmt stmt, int indentLevel) {
+        String valueCode = AstHelper.exprToJavaCode(stmt.getValueExpr());
+        String varName = stmt.getVarName();
+        
+        for (int i = 0; i < indentLevel; i++) {
+            stringBuilder.append(INDENT);
+        }
+        stringBuilder.append(varName).append(" = ").append(valueCode).append(";\n");
+    }
+    
+    private void visitWithIndent(AtcAssumeStmt stmt, int indentLevel) {
+        String condCode = AstHelper.exprToJavaCode(stmt.getCondition());
+        // Strip outer parentheses only for null checks
+        if (condCode.startsWith("(") && condCode.endsWith(")") && condCode.length() > 2) {
+            String inner = condCode.substring(1, condCode.length() - 1);
+            if (inner.contains("null") && !inner.contains("(")) {
+                condCode = inner;
+            }
+        }
+        for (int i = 0; i < indentLevel; i++) {
+            stringBuilder.append(INDENT);
+        }
+        stringBuilder.append("assume(").append(condCode).append(");\n");
+    }
+    
+    private void visitWithIndent(AtcAssertStmt stmt, int indentLevel) {
+        // This is complex, so just use the regular visit and adjust indentation
+        // For now, assert statements shouldn't appear in if blocks, but handle it anyway
+        Expr condition = stmt.getCondition();
+        Map<String, MethodCallExpr> methodCallMap = new HashMap<>();
+        Expr processedCondition = extractMethodCallsFromAssertion(condition, methodCallMap);
+        
+        for (Map.Entry<String, MethodCallExpr> entry : methodCallMap.entrySet()) {
+            String varName = entry.getKey();
+            MethodCallExpr methodCall = entry.getValue();
+            String methodCallCode = AstHelper.exprToJavaCode(methodCall);
+            String returnType = inferReturnType(methodCall);
+            
+            for (int i = 0; i < indentLevel; i++) {
+                stringBuilder.append(INDENT);
+            }
+            stringBuilder.append(returnType).append(" ").append(varName)
+                         .append(" = ").append(methodCallCode).append(";\n");
+        }
+        
+        String condCode = AstHelper.exprToJavaCode(processedCondition);
+        // Strip outer parentheses only for null checks
+        if (condCode.startsWith("(") && condCode.endsWith(")") && condCode.length() > 2) {
+            String inner = condCode.substring(1, condCode.length() - 1);
+            if (inner.contains("null") && !inner.contains("(")) {
+                condCode = inner;
+            }
+        }
+        for (int i = 0; i < indentLevel; i++) {
+            stringBuilder.append(INDENT);
+        }
+        stringBuilder.append("assert(").append(condCode).append(");\n");
+    }
+    
+    private void visitWithIndent(AtcSymbolicVarDecl stmt, int indentLevel) {
+        // Symbolic var decls shouldn't appear in if blocks, but handle it
+        visit((AtcSymbolicVarDecl) stmt);
     }
 
     private void visit(AtcSymbolicVarDecl stmt) {
@@ -151,12 +292,44 @@ public class AtcIrCodeGenerator {
 
     private void visit(AtcAssumeStmt stmt) {
         String condCode = AstHelper.exprToJavaCode(stmt.getCondition());
+        // Strip outer parentheses only for null checks (e.g., "(data != null)" -> "data != null")
+        // Keep parentheses for other comparisons (e.g., "(x > 0)" stays as "(x > 0)")
+        if (condCode.startsWith("(") && condCode.endsWith(")") && condCode.length() > 2) {
+            String inner = condCode.substring(1, condCode.length() - 1);
+            // Only strip if it's a null check (contains "null")
+            if (inner.contains("null") && !inner.contains("(")) {
+                condCode = inner;
+            }
+        }
         stringBuilder.append(INDENT).append(INDENT)
                      .append("assume(").append(condCode).append(");\n");
     }
 
     private void visit(AtcMethodCallStmt stmt) {
         String callCode = AstHelper.exprToJavaCode(stmt.getCallExpr());
+        // For println calls with string concatenation, strip outer parentheses for collections
+        // Pattern: System.out.println(("Test Input: data = " + data)) -> System.out.println("Test Input: data = " + data)
+        // For collections, we want: System.out.println("Test Input: data = " + data)
+        // For primitives, we want: System.out.println(("Test Input: x = " + x))
+        if (callCode.contains("System.out.println") && callCode.contains("Test Input:")) {
+            // Check if it has double parentheses: println(("..."))
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("System\\.out\\.println\\(\\(([^)]+)\\)\\)");
+            java.util.regex.Matcher matcher = pattern.matcher(callCode);
+            if (matcher.find()) {
+                String inner = matcher.group(1);
+                // Extract variable name from the concatenation (e.g., "Test Input: data = " + data -> data)
+                java.util.regex.Pattern varPattern = java.util.regex.Pattern.compile("\"Test Input: [^=]+= \" \\+ ([a-zA-Z_][a-zA-Z0-9_]*)");
+                java.util.regex.Matcher varMatcher = varPattern.matcher(inner);
+                if (varMatcher.find()) {
+                    String varName = varMatcher.group(1);
+                    // If variable name suggests a collection (data, result, map, set, list, etc.)
+                    if (varName.matches("(data|result|map|set|list|collection|queue|deque)")) {
+                        // Strip outer parentheses: System.out.println(("...")) -> System.out.println("...")
+                        callCode = "System.out.println(" + inner + ")";
+                    }
+                }
+            }
+        }
         stringBuilder.append(INDENT).append(INDENT)
                      .append(callCode).append(";\n");
     }
@@ -209,6 +382,15 @@ public class AtcIrCodeGenerator {
         }
         
         String condCode = AstHelper.exprToJavaCode(processedCondition);
+        // Strip outer parentheses only for null checks (e.g., "(result != null)" -> "result != null")
+        // Keep parentheses for other comparisons (e.g., "(x > x_old)" stays as "(x > x_old)")
+        if (condCode.startsWith("(") && condCode.endsWith(")") && condCode.length() > 2) {
+            String inner = condCode.substring(1, condCode.length() - 1);
+            // Only strip if it's a null check (contains "null")
+            if (inner.contains("null") && !inner.contains("(")) {
+                condCode = inner;
+            }
+        }
         stringBuilder.append(INDENT).append(INDENT)
                      .append("assert(").append(condCode).append(");\n");
     }

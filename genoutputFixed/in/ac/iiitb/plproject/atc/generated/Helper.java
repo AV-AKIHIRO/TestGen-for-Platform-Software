@@ -11,7 +11,7 @@ public class Helper {
             x[0] = x[0] + 1;
         }
     }
-    
+
     public static void process(Set<Integer> data, Map<Integer, Integer> result) {
         if (data != null && result != null) {
             for (Integer item : data) {
@@ -19,8 +19,11 @@ public class Helper {
             }
         }
     }
-    
+
     public static Map<?,?> update(Map<Integer, Integer> result, Set<Integer> data) {
+        if (result == null) {
+            return new HashMap<>();
+        }
         Map<Integer, Integer> updated = new HashMap<>(result);
         if (data != null) {
             for (Integer item : data) {

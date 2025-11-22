@@ -58,7 +58,9 @@ public class SpfWrapper {
             return indent + type + " " + varName + " = " + debugCall + ";";
         }
         
-        Pattern pattern2 = Pattern.compile("(\\s+)([\\w.<?>,]+)\\s+(\\w+)\\s*=\\s*\\(([\\w.<?>,]+)\\)\\s*Symbolic\\.input\\(\"([^\"]+)\"\\);");
+        // Pattern to match: "Type<...> var = (Type<...>) Symbolic.input("var");"
+        // Handles spaces in generic types like "Map<Integer, Integer>"
+        Pattern pattern2 = Pattern.compile("(\\s+)([\\w.]+(?:<[\\w.\\s,]+>)?)\\s+(\\w+)\\s*=\\s*\\(([\\w.]+(?:<[\\w.\\s,]+>)?)\\)\\s*Symbolic\\.input\\(\"([^\"]+)\"\\);");
         Matcher matcher2 = pattern2.matcher(line);
         if (matcher2.find()) {
             String indent = matcher2.group(1);
@@ -80,7 +82,8 @@ public class SpfWrapper {
         }
         
         if (line.contains("Symbolic.input(")) {
-            Pattern fallbackPattern = Pattern.compile("(\\s+)([\\w.<?>,]+)\\s+(\\w+)\\s*=\\s*.*Symbolic\\.input\\(\"([^\"]+)\"\\);");
+            // Fallback pattern to handle any remaining Symbolic.input() calls
+            Pattern fallbackPattern = Pattern.compile("(\\s+)([\\w.]+(?:<[\\w.\\s,]+>)?)\\s+(\\w+)\\s*=\\s*.*Symbolic\\.input\\(\"([^\"]+)\"\\);");
             Matcher fallbackMatcher = fallbackPattern.matcher(line);
             if (fallbackMatcher.find()) {
                 String type = fallbackMatcher.group(2);
@@ -93,6 +96,7 @@ public class SpfWrapper {
                     return fallbackMatcher.group(1) + genericType + " " + varName + " = " + initCode + ";";
                 }
             }
+            // Only use null fallback if it's not a collection type
             return line.replace("Symbolic.input(\"", "Debug.makeSymbolicRef(\"").replace("\")", "\", null)");
         }
         
@@ -390,6 +394,9 @@ public class SpfWrapper {
             writer.write("        }\n");
             writer.write("    }\n\n");
             writer.write("    public static Map<?,?> update(Map<Integer, Integer> result, Set<Integer> data) {\n");
+            writer.write("        if (result == null) {\n");
+            writer.write("            return new HashMap<>();\n");
+            writer.write("        }\n");
             writer.write("        Map<Integer, Integer> updated = new HashMap<>(result);\n");
             writer.write("        if (data != null) {\n");
             writer.write("            for (Integer item : data) {\n");

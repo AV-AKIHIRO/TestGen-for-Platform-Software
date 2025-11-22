@@ -354,11 +354,23 @@ public class AstHelper {
             BinaryExpr.Operator op = binExpr.op;
             if (op == BinaryExpr.Operator.AND) {
                 operator = " && ";
+                // Strip outer parentheses from left and right if they exist, then combine
+                String leftClean = stripOuterParens(left);
+                String rightClean = stripOuterParens(right);
+                return leftClean + operator + rightClean;
             } else if (op == BinaryExpr.Operator.OR) {
                 operator = " || ";
+                // Strip outer parentheses from left and right if they exist, then combine
+                String leftClean = stripOuterParens(left);
+                String rightClean = stripOuterParens(right);
+                return leftClean + operator + rightClean;
             } else if (op == BinaryExpr.Operator.EQUALS) {
                 // For EQUALS, use .equals() for object comparisons, == for primitives
-                if (isObjectExpression(binExpr.left) || isObjectExpression(binExpr.right)) {
+                // Special case: if comparing with null, use simple == null
+                if (left.equals("null") || right.equals("null")) {
+                    String varName = left.equals("null") ? right : left;
+                    return "(" + varName + " == null)";
+                } else if (isObjectExpression(binExpr.left) || isObjectExpression(binExpr.right)) {
                     // Check if one side is a method call (which returns a new object)
                     // For Map comparisons, we need to use .equals() directly, not Objects.equals()
                     boolean leftIsMethodCall = binExpr.left instanceof MethodCallExpr;
@@ -394,7 +406,11 @@ public class AstHelper {
                 }
             } else if (op == BinaryExpr.Operator.NOT_EQUALS) {
                 // For NOT_EQUALS, use !.equals() for object comparisons, != for primitives
-                if (isObjectExpression(binExpr.left) || isObjectExpression(binExpr.right)) {
+                // Special case: if comparing with null, use simple != null
+                if (left.equals("null") || right.equals("null")) {
+                    String varName = left.equals("null") ? right : left;
+                    return "(" + varName + " != null)";
+                } else if (isObjectExpression(binExpr.left) || isObjectExpression(binExpr.right)) {
                     return "(!java.util.Objects.equals(" + left + ", " + right + "))";
                 } else {
                     operator = " != ";
@@ -409,6 +425,8 @@ public class AstHelper {
                 operator = " >= ";
             } else if (op == BinaryExpr.Operator.PLUS) {
                 operator = " + ";
+                // Keep parentheses for string concatenation (used in println)
+                // This matches the correct version which has parentheses
             } else if (op == BinaryExpr.Operator.MINUS) {
                 operator = " - ";
             } else if (op == BinaryExpr.Operator.MULTIPLY) {
@@ -760,6 +778,35 @@ public class AstHelper {
         if (left == null) return right;
         if (right == null) return left;
         return createBinaryExpr(left, right, "AND");
+    }
+    
+    /**
+     * Strip outer parentheses from an expression string if they exist.
+     * Used to clean up expressions before combining with AND/OR.
+     */
+    private static String stripOuterParens(String expr) {
+        if (expr == null || expr.length() < 2) {
+            return expr;
+        }
+        if (expr.startsWith("(") && expr.endsWith(")")) {
+            // Check if it's a balanced pair of outer parentheses
+            int depth = 0;
+            for (int i = 0; i < expr.length(); i++) {
+                if (expr.charAt(i) == '(') {
+                    depth++;
+                } else if (expr.charAt(i) == ')') {
+                    depth--;
+                    if (depth == 0 && i < expr.length() - 1) {
+                        // Not a balanced outer pair
+                        return expr;
+                    }
+                }
+            }
+            if (depth == 0) {
+                return expr.substring(1, expr.length() - 1);
+            }
+        }
+        return expr;
     }
 }
 
