@@ -100,13 +100,18 @@ public class TypeMapper {
     
     /**
      * Gets the generic type string for a collection type.
+     * Preserves existing generic type information if present.
      * 
-     * @param typeName The base type name (e.g., "Set", "Map")
-     * @return The generic type string (e.g., "Set<?>", "Map<?,?>")
+     * @param typeName The type name (e.g., "Set", "Map", "Set<Integer>", "Map<Integer, Integer>")
+     * @return The generic type string (e.g., "Set<?>", "Map<?,?>", "Set<Integer>", "Map<Integer, Integer>")
      */
     public static String getGenericType(String typeName) {
         if (typeName == null) {
             return "Object";
+        }
+        // If the type already has generic parameters, preserve them
+        if (typeName.contains("<") && typeName.contains(">")) {
+            return typeName;
         }
         // Extract base type if it's already generic
         String baseType = typeName.split("[<>]")[0].trim();

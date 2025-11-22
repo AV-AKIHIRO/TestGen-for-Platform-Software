@@ -62,12 +62,12 @@ public class IncrementalTestExample {
             JmlFunctionSpec spec = createMockIncrementSpec();
             JmlFunctionSpec spec2 = createMockProcessSpec();
             
-            List<JmlFunctionSpec> specs = Arrays.asList(spec,spec2);
+            List<JmlFunctionSpec> specs = Arrays.asList(spec, spec2);
             JmlSpecAst jmlSpecAst = new JmlSpecAst(specs);
             
             // Create test string: test increment function
             TestStringAst testStringAst = new TestStringAst(
-                Arrays.asList("increment", "increment","process", "increment")
+                Arrays.asList("increment", "increment", "process", "increment")
             );
             
             // Print the JML Spec AST for debugging
@@ -200,9 +200,9 @@ public class IncrementalTestExample {
      * Helper method to create a mock JML spec for process function.
      */
     private static JmlFunctionSpec createMockProcessSpec() {
-        // Create function signature: process(data: Set, result: Map) -> void
-        Variable param1 = new Variable("data", "Set");
-        Variable param2 = new Variable("result", "Map");
+        // Create function signature: process(data: Set<Integer>, result: Map<Integer, Integer>) -> void
+        Variable param1 = new Variable("data", "Set<Integer>");
+        Variable param2 = new Variable("result", "Map<Integer, Integer>");
         FunctionSignature signature = new FunctionSignature(
             "process",
             Arrays.asList(param1, param2),

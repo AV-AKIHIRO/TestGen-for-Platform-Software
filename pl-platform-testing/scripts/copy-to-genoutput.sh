@@ -32,22 +32,15 @@ else
     echo "  [WARNING] GeneratedATCs.java not found in outputs/"
 fi
 
-# Copy .jpf files to genoutput root
-if [ -f "$PROJECT_ROOT/outputs/GeneratedATCs_increment_helper.jpf" ]; then
-    echo "Copying GeneratedATCs_increment_helper.jpf..."
-    cp "$PROJECT_ROOT/outputs/GeneratedATCs_increment_helper.jpf" "$GENOUTPUT_DIR/GeneratedATCs_increment_helper.jpf"
-    echo "  [OK] GeneratedATCs_increment_helper.jpf copied"
-else
-    echo "  [WARNING] GeneratedATCs_increment_helper.jpf not found in outputs/"
-fi
-
-if [ -f "$PROJECT_ROOT/outputs/GeneratedATCs_process_helper.jpf" ]; then
-    echo "Copying GeneratedATCs_process_helper.jpf..."
-    cp "$PROJECT_ROOT/outputs/GeneratedATCs_process_helper.jpf" "$GENOUTPUT_DIR/GeneratedATCs_process_helper.jpf"
-    echo "  [OK] GeneratedATCs_process_helper.jpf copied"
-else
-    echo "  [WARNING] GeneratedATCs_process_helper.jpf not found in outputs/"
-fi
+# Copy .jpf files to genoutput root (only copy files that exist)
+for jpf_file in "$PROJECT_ROOT/outputs/GeneratedATCs_"*"_helper.jpf"; do
+    if [ -f "$jpf_file" ]; then
+        filename=$(basename "$jpf_file")
+        echo "Copying $filename..."
+        cp "$jpf_file" "$GENOUTPUT_DIR/$filename"
+        echo "  [OK] $filename copied"
+    fi
+done
 
 # Copy main.jpf file (primary test file for the complete sequence)
 if [ -f "$PROJECT_ROOT/outputs/GeneratedATCs_main.jpf" ]; then
@@ -58,9 +51,13 @@ else
     echo "  [WARNING] GeneratedATCs_main.jpf not found in outputs/"
 fi
 
-# Check if Helper.java exists, if not warn
-if [ ! -f "$GENOUTPUT_DIR/in/ac/iiitb/plproject/atc/generated/Helper.java" ]; then
-    echo "  [WARNING] Helper.java not found in genoutput - make sure it exists!"
+# Copy Helper.java from outputs to genoutput
+if [ -f "$PROJECT_ROOT/outputs/in/ac/iiitb/plproject/atc/generated/Helper.java" ]; then
+    echo "Copying Helper.java..."
+    cp "$PROJECT_ROOT/outputs/in/ac/iiitb/plproject/atc/generated/Helper.java" "$GENOUTPUT_DIR/in/ac/iiitb/plproject/atc/generated/Helper.java"
+    echo "  [OK] Helper.java copied"
+else
+    echo "  [WARNING] Helper.java not found in outputs/"
 fi
 
 echo
@@ -76,7 +73,6 @@ echo "  ├── in/ac/iiitb/plproject/atc/generated/"
 echo "  │   ├── GeneratedATCs.java"
 echo "  │   └── Helper.java"
 echo "  ├── GeneratedATCs_main.jpf (PRIMARY - test complete sequence)"
-echo "  ├── GeneratedATCs_increment_helper.jpf"
-echo "  └── GeneratedATCs_process_helper.jpf"
+echo "  └── GeneratedATCs_*_helper.jpf (for each helper method)"
 echo
 

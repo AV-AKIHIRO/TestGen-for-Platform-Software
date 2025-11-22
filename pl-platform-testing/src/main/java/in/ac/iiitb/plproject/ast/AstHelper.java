@@ -464,6 +464,21 @@ public class AstHelper {
             ObjectCreationExpr objCreationExpr = (ObjectCreationExpr) e;
             String typeName = ((ClassOrInterfaceType) objCreationExpr.type).name.identifier;
             
+            // Special handling for array types: "int[]" -> "new int[]{x}"
+            if (typeName.endsWith("[]")) {
+                String baseType = typeName.substring(0, typeName.length() - 2);
+                StringBuilder sb = new StringBuilder("new ");
+                sb.append(baseType).append("[]{");
+                for (int i = 0; i < objCreationExpr.args.size(); i++) {
+                    sb.append(exprToJavaCode(objCreationExpr.args.get(i)));
+                    if (i < objCreationExpr.args.size() - 1) {
+                        sb.append(", ");
+                    }
+                }
+                sb.append("}");
+                return sb.toString();
+            }
+            
             // Special handling for Set - cannot instantiate interface directly
             if (typeName.equals("Set")) {
                 // Generate: new HashSet<>(Arrays.asList(...))
@@ -695,6 +710,13 @@ public class AstHelper {
      */
     public static IntegerLiteralExpr createIntegerLiteralExpr(int value) {
         return new IntegerLiteralExpr(value);
+    }
+
+    /**
+     * Create a StringLiteralExpr.
+     */
+    public static StringLiteralExpr createStringLiteralExpr(String value) {
+        return new StringLiteralExpr(value);
     }
 
     /**

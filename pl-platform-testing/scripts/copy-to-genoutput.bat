@@ -33,21 +33,13 @@ if exist "%PROJECT_ROOT%\outputs\GeneratedATCs.java" (
     echo   [WARNING] GeneratedATCs.java not found in outputs/
 )
 
-REM Copy .jpf files to genoutput root
-if exist "%PROJECT_ROOT%\outputs\GeneratedATCs_increment_helper.jpf" (
-    echo Copying GeneratedATCs_increment_helper.jpf...
-    copy /Y "%PROJECT_ROOT%\outputs\GeneratedATCs_increment_helper.jpf" "%PROJECT_ROOT%\..\genoutput\GeneratedATCs_increment_helper.jpf"
-    echo   [OK] GeneratedATCs_increment_helper.jpf copied
-) else (
-    echo   [WARNING] GeneratedATCs_increment_helper.jpf not found in outputs/
-)
-
-if exist "%PROJECT_ROOT%\outputs\GeneratedATCs_process_helper.jpf" (
-    echo Copying GeneratedATCs_process_helper.jpf...
-    copy /Y "%PROJECT_ROOT%\outputs\GeneratedATCs_process_helper.jpf" "%PROJECT_ROOT%\..\genoutput\GeneratedATCs_process_helper.jpf"
-    echo   [OK] GeneratedATCs_process_helper.jpf copied
-) else (
-    echo   [WARNING] GeneratedATCs_process_helper.jpf not found in outputs/
+REM Copy .jpf files to genoutput root (only copy files that exist)
+for %%f in ("%PROJECT_ROOT%\outputs\GeneratedATCs_*_helper.jpf") do (
+    if exist "%%f" (
+        echo Copying %%~nxf...
+        copy /Y "%%f" "%PROJECT_ROOT%\..\genoutput\%%~nxf"
+        echo   [OK] %%~nxf copied
+    )
 )
 
 REM Copy main.jpf file (primary test file for the complete sequence)
@@ -59,9 +51,13 @@ if exist "%PROJECT_ROOT%\outputs\GeneratedATCs_main.jpf" (
     echo   [WARNING] GeneratedATCs_main.jpf not found in outputs/
 )
 
-REM Check if Helper.java exists, if not warn
-if not exist "%PROJECT_ROOT%\..\genoutput\in\ac\iiitb\plproject\atc\generated\Helper.java" (
-    echo   [WARNING] Helper.java not found in genoutput - make sure it exists!
+REM Copy Helper.java from outputs to genoutput
+if exist "%PROJECT_ROOT%\outputs\in\ac\iiitb\plproject\atc\generated\Helper.java" (
+    echo Copying Helper.java...
+    copy /Y "%PROJECT_ROOT%\outputs\in\ac\iiitb\plproject\atc\generated\Helper.java" "%PROJECT_ROOT%\..\genoutput\in\ac\iiitb\plproject\atc\generated\Helper.java"
+    echo   [OK] Helper.java copied
+) else (
+    echo   [WARNING] Helper.java not found in outputs/
 )
 
 echo.
@@ -77,8 +73,7 @@ echo     in/ac/iiitb/plproject/atc/generated/
 echo       GeneratedATCs.java
 echo       Helper.java
 echo     GeneratedATCs_main.jpf (PRIMARY - test complete sequence)
-echo     GeneratedATCs_increment_helper.jpf
-echo     GeneratedATCs_process_helper.jpf
+echo     GeneratedATCs_*_helper.jpf (for each helper method)
 echo.
 
 pause

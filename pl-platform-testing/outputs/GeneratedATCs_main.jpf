@@ -7,11 +7,18 @@ classpath = ${jpf-symbc}/build/examples
 # Path to source code
 sourcepath = ${jpf-symbc}/src/examples
 
-# Define symbolic variables in the method under test
-symbolic.method = in.ac.iiitb.plproject.atc.generated.GeneratedATCs.main(java.lang.String[])
+# Constraint solver - required for symbolic execution
+symbolic.dp = z3
 
 # Symbolic string variables created via Debug.makeSymbolicString
 symbolic.string_dp = true
+
+# Add instruction factory for symbolic execution
+vm.insn_factory.class = gov.nasa.jpf.symbc.SymbolicInstructionFactory
+
+# Enable symbolic array handling (needed for array operations)
+symbolic.arrays = true
+
 
 # Integer ranges
 symbolic.minint = -100
@@ -24,17 +31,12 @@ search.time_limit = 60
 search.multiple_errors = true
 search.class = .search.heuristic.BFSHeuristic
 
-# Listeners for test input extraction and coverage
-# SymbolicSequenceListener generates JUnit tests with concrete values
-listener = gov.nasa.jpf.symbc.sequences.SymbolicSequenceListener,gov.nasa.jpf.listener.CoverageAnalyzer
+# Show path conditions and symbolic execution results
+# SymbolicPathListener displays path conditions (constraints like "x > CONST_0")
+jpf.report.console.finished = gov.nasa.jpf.symbc.SymbolicPathListener
 
-# Show method coverage
-coverage.include = *.GeneratedATCs
-coverage.show_methods = true
-coverage.show_bodies = true
+# Disable verbose debug output - we only want test inputs, not search process
+# symbolic.debug = true
 
-# To extract concrete test input values from JPF output:
-# 1. Look for 'pc X constraint # = Y' sections - these show path conditions
-# 2. Look for 'JUnit 4.0 test class' section - shows generated test cases
-# 3. The path conditions show constraints; JPF's solver finds values satisfying them
-# 4. For actual concrete values, check the constraint solver output or add Debug.printPC() calls
+# Enable output so System.out.println shows test input values
+vm.output = true
