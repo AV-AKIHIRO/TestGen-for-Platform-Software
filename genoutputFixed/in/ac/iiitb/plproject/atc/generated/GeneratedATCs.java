@@ -19,7 +19,6 @@ public class GeneratedATCs {
         assert((x > x_old));
     }
 
-    @Test
     public void process_helper() {
         Set<Integer> data = (Set<Integer>) Debug.makeSymbolicRef("data", new HashSet<>());
         Map<Integer, Integer> result = (Map<Integer, Integer>) Debug.makeSymbolicRef("result", new HashMap<>());

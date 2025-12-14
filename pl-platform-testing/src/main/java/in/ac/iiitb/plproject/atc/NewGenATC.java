@@ -12,7 +12,6 @@ public class NewGenATC implements GenATC {
     @Override
     public AtcClass generateAtcFile(JmlSpecAst jmlSpecAst, TestStringAst testStringAst) {
         List<String> imports = new ArrayList<>();
-        imports.add("org.junit.Test");
         imports.add("java.util.*");
 
         List<AtcTestMethod> actualTestMethods = new ArrayList<>();

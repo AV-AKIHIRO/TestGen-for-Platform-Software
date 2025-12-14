@@ -1,9 +1,9 @@
 package in.ac.iiitb.plproject.symex;
 
-import in.ac.iiitb.plproject.atc.JavaFile;
 import in.ac.iiitb.plproject.atc.ConcreteInput;
 import in.ac.iiitb.plproject.atc.ir.AtcClass;
 import in.ac.iiitb.plproject.atc.ir.AtcTestMethod;
+import in.ac.iiitb.plproject.atc.ir.AtcIrCodeGenerator;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
@@ -14,156 +14,12 @@ import java.nio.file.Paths;
 
 public class SpfWrapper {
     
-    public String transformToJpfCode(String simpleJavaCode) {
-        StringBuilder jpfCode = new StringBuilder();
-        String[] lines = simpleJavaCode.split("\n");
-        boolean importsAdded = false;
-        
-        for (String line : lines) {
-            if (line.trim().startsWith("package ") && !importsAdded) {
-                jpfCode.append(line).append("\n\n");
-                jpfCode.append("import gov.nasa.jpf.symbc.Debug;\n");
-                importsAdded = true;
-                continue;
-            }
-            
-            if (line.trim().startsWith("import gov.nasa.jpf.symbc.Debug")) {
-                continue;
-            }
-            
-            if (line.contains("Symbolic.input(")) {
-                line = transformSymbolicInput(line);
-            }
-            
-            if (line.contains("assume(") && !line.contains("Debug.assume(")) {
-                line = line.replace("assume(", "Debug.assume(");
-            }
-            
-            jpfCode.append(line).append("\n");
-        }
-        
-        return jpfCode.toString();
-    }
+    private AtcIrToSymbolicIrTransformer transformer;
+    private AtcIrCodeGenerator codeGenerator;
     
-    private String transformSymbolicInput(String line) {
-        Pattern pattern1 = Pattern.compile("(\\s+)(int|double|String|boolean|Integer|Double|Boolean)\\s+(\\w+)\\s*=\\s*Symbolic\\.input\\(\"([^\"]+)\"\\);");
-        Matcher matcher1 = pattern1.matcher(line);
-        if (matcher1.find()) {
-            String indent = matcher1.group(1);
-            String type = matcher1.group(2);
-            String varName = matcher1.group(3);
-            String varNameInQuotes = matcher1.group(4);
-            
-            String debugCall = getDebugMakeSymbolicCall(type, varNameInQuotes);
-            return indent + type + " " + varName + " = " + debugCall + ";";
-        }
-        
-        // Pattern to match array initialization: "int[] x = new int[]{Symbolic.input("x")};"
-        Pattern arrayPattern = Pattern.compile("(\\s+)(int|double|String|boolean|Integer|Double|Boolean)\\[\\]\\s+(\\w+)\\s*=\\s*new\\s+(int|double|String|boolean|Integer|Double|Boolean)\\[\\]\\{Symbolic\\.input\\(\"([^\"]+)\"\\)\\};");
-        Matcher arrayMatcher = arrayPattern.matcher(line);
-        if (arrayMatcher.find()) {
-            String indent = arrayMatcher.group(1);
-            String arrayType = arrayMatcher.group(2);
-            String varName = arrayMatcher.group(3);
-            String elementType = arrayMatcher.group(4);
-            String varNameInQuotes = arrayMatcher.group(5);
-            
-            String debugCall = getDebugMakeSymbolicCall(elementType, varNameInQuotes);
-            return indent + arrayType + "[] " + varName + " = new " + elementType + "[]{" + debugCall + "};";
-        }
-        
-        // Pattern to match: "Type<...> var = (Type<...>) Symbolic.input("var");"
-        // Handles spaces in generic types like "Map<Integer, Integer>"
-        Pattern pattern2 = Pattern.compile("(\\s+)([\\w.]+(?:<[\\w.\\s,]+>)?)\\s+(\\w+)\\s*=\\s*\\(([\\w.]+(?:<[\\w.\\s,]+>)?)\\)\\s*Symbolic\\.input\\(\"([^\"]+)\"\\);");
-        Matcher matcher2 = pattern2.matcher(line);
-        if (matcher2.find()) {
-            String indent = matcher2.group(1);
-            String type = matcher2.group(2);
-            String varName = matcher2.group(3);
-            String castType = matcher2.group(4);
-            String varNameInQuotes = matcher2.group(5);
-            
-            String baseType = castType.split("[<>]")[0].trim();
-            
-            if (TypeMapper.isCollectionType(baseType)) {
-                String genericType = TypeMapper.getGenericType(castType);
-                String initCode = TypeMapper.getCollectionInitCode(castType, varNameInQuotes);
-                return indent + genericType + " " + varName + " = " + initCode + ";";
-            } else {
-                String debugCall = TypeMapper.getMakeSymbolicRefCall(baseType, varNameInQuotes, false);
-                return indent + type + " " + varName + " = " + debugCall + ";";
-            }
-        }
-        
-        if (line.contains("Symbolic.input(")) {
-            // Fallback pattern to handle any remaining Symbolic.input() calls
-            Pattern fallbackPattern = Pattern.compile("(\\s+)([\\w.]+(?:<[\\w.\\s,]+>)?)\\s+(\\w+)\\s*=\\s*.*Symbolic\\.input\\(\"([^\"]+)\"\\);");
-            Matcher fallbackMatcher = fallbackPattern.matcher(line);
-            if (fallbackMatcher.find()) {
-                String type = fallbackMatcher.group(2);
-                String baseType = type.split("[<>]")[0].trim();
-                if (TypeMapper.isCollectionType(baseType)) {
-                    String genericType = TypeMapper.getGenericType(type);
-                    String varName = fallbackMatcher.group(3);
-                    String varNameInQuotes = fallbackMatcher.group(4);
-                    String initCode = TypeMapper.getCollectionInitCode(type, varNameInQuotes);
-                    return fallbackMatcher.group(1) + genericType + " " + varName + " = " + initCode + ";";
-                }
-            }
-            // Only use null fallback if it's not a collection type
-            return line.replace("Symbolic.input(\"", "Debug.makeSymbolicRef(\"").replace("\")", "\", null)");
-        }
-        
-        return line;
-    }
-    
-    private String getDebugMakeSymbolicCall(String type, String varName) {
-        if (type.equalsIgnoreCase("int") || type.equals("Integer")) {
-            return "Debug.makeSymbolicInteger(\"" + varName + "\")";
-        } else if (type.equalsIgnoreCase("double") || type.equals("Double")) {
-            return "Debug.makeSymbolicDouble(\"" + varName + "\")";
-        } else if (type.equalsIgnoreCase("String")) {
-            return "Debug.makeSymbolicString(\"" + varName + "\")";
-        } else if (type.equalsIgnoreCase("boolean") || type.equals("Boolean")) {
-            return "Debug.makeSymbolicInteger(\"" + varName + "\") != 0";
-        } else if (TypeMapper.isCollectionType(type)) {
-            return TypeMapper.getCollectionInitCode(type, varName);
-        } else {
-            return TypeMapper.getMakeSymbolicRefCall(type, varName, false);
-        }
-    }
-    
-    private String[] extractClassInfo(String javaCode) {
-        String packageName = null;
-        String className = null;
-        
-        String[] lines = javaCode.split("\n");
-        for (String line : lines) {
-            line = line.trim();
-            if (line.startsWith("package ")) {
-                packageName = line.substring(8, line.length() - 1).trim();
-            } else if (line.startsWith("public class ")) {
-                className = line.substring(13).split("\\s|\\{")[0].trim();
-                break;
-            }
-        }
-        
-        if (packageName != null && className != null) {
-            return new String[]{packageName, className};
-        }
-        return null;
-    }
-    
-    private List<String> extractTestMethods(String javaCode) {
-        List<String> methods = new ArrayList<>();
-        Pattern methodPattern = Pattern.compile("public\\s+void\\s+(\\w+_helper)\\s*\\(\\s*\\)");
-        Matcher matcher = methodPattern.matcher(javaCode);
-        
-        while (matcher.find()) {
-            methods.add(matcher.group(1));
-        }
-        
-        return methods;
+    public SpfWrapper() {
+        this.transformer = new AtcIrToSymbolicIrTransformer();
+        this.codeGenerator = new AtcIrCodeGenerator();
     }
     
     private String extractMethodSignature(String javaCode, String methodName) {
@@ -252,71 +108,83 @@ public class SpfWrapper {
         return methodName + "()";
     }
     
-    public void printBothVersions(String simpleJavaCode) {
+    public void printBothVersions(AtcClass atcClass) {
+        String simpleJavaCode = codeGenerator.generateJavaFile(atcClass);
+        AtcClass symbolicIr = transformer.transform(atcClass);
+        String jpfCode = codeGenerator.generateSymbolicJavaFile(symbolicIr);
+        printBothVersions(simpleJavaCode, jpfCode, atcClass);
+    }
+    
+    private void printBothVersions(String simpleJavaCode, String jpfCode, AtcClass atcClass) {
         String separator = "================================================================================";
-        System.out.println(separator);
-        System.out.println("SIMPLE JAVA CODE (Generated by NewGenATC):");
+        
+        System.out.println("\n" + separator);
+        System.out.println("ORIGINAL ATC CODE (Generated by NewGenATC - Non-Symbolic):");
         System.out.println(separator);
         System.out.println(simpleJavaCode);
         System.out.println();
         
-        String jpfCode = transformToJpfCode(simpleJavaCode);
         System.out.println(separator);
         System.out.println("JPF-TRANSFORMED CODE (Ready for Symbolic PathFinder):");
         System.out.println(separator);
         System.out.println(jpfCode);
         System.out.println();
         
-        String[] classInfo = extractClassInfo(simpleJavaCode);
-        if (classInfo != null) {
-            String packageName = classInfo[0];
-            String className = classInfo[1];
-            String fullClassName = packageName + "." + className;
+        String packageName = atcClass.getPackageName();
+        String className = atcClass.getClassName();
+        String fullClassName = (packageName != null && !packageName.isEmpty()) 
+            ? packageName + "." + className 
+            : className;
+        
+        List<String> testMethods = new ArrayList<>();
+        for (AtcTestMethod method : atcClass.getTestMethods()) {
+            if (method.isTestAnnotated() && !method.isMain()) {
+                testMethods.add(method.getMethodName());
+            }
+        }
+        
+        if (fullClassName != null && !testMethods.isEmpty()) {
+            System.out.println(separator);
+            System.out.println("GENERATED .JPF CONFIGURATION FILES:");
+            System.out.println(separator);
             
-            List<String> testMethods = extractTestMethods(simpleJavaCode);
-            
-            if (!testMethods.isEmpty()) {
-                System.out.println(separator);
-                System.out.println("GENERATED .JPF CONFIGURATION FILES:");
-                System.out.println(separator);
+            String firstMethod = testMethods.get(0);
+            try {
+                String jpfContent = generateJpfFile(fullClassName, firstMethod, null, null, null, jpfCode);
+                System.out.println("# Example .jpf file for: " + fullClassName + "." + firstMethod + "()");
+                System.out.println(jpfContent);
+                System.out.println();
                 
-                String firstMethod = testMethods.get(0);
-                try {
-                    String jpfContent = generateJpfFile(fullClassName, firstMethod, null, null, null, simpleJavaCode);
-                    System.out.println("# Example .jpf file for: " + fullClassName + "." + firstMethod + "()");
-                    System.out.println(jpfContent);
-                    System.out.println();
-                    
-                    if (testMethods.size() > 1) {
-                        System.out.println("# Note: " + (testMethods.size() - 1) + " more test method(s) found.");
-                        System.out.println("# Use generateJpfFilesForMethods() to generate .jpf files for all methods.");
-                    }
-                } catch (IOException e) {
-                    System.err.println("Error generating .jpf file: " + e.getMessage());
+                if (testMethods.size() > 1) {
+                    System.out.println("# " + (testMethods.size() - 1) + " more test method(s) found.");
                 }
+            } catch (IOException e) {
+                System.err.println("Error generating .jpf file: " + e.getMessage());
             }
         }
     }
     
-    public List<ConcreteInput> run(JavaFile atcJavaFile) {
-        return run(atcJavaFile, null);
-    }
-    
-    public List<ConcreteInput> run(JavaFile atcJavaFile, AtcClass atcClass) {
-        printBothVersions(atcJavaFile.getContent());
+    public List<ConcreteInput> run(AtcClass atcClass) {
+        printBothVersions(atcClass);
         
-        String jpfCode = transformToJpfCode(atcJavaFile.getContent());
+        AtcClass symbolicIr = transformer.transform(atcClass);
+        String jpfCode = codeGenerator.generateSymbolicJavaFile(symbolicIr);
+        String simpleJavaCode = codeGenerator.generateJavaFile(atcClass);
         
         try {
-            saveOutputFiles(atcJavaFile.getContent(), jpfCode, atcClass);
+            saveOutputFiles(simpleJavaCode, jpfCode, symbolicIr);
         } catch (IOException e) {
             System.err.println("Error saving output files: " + e.getMessage());
             e.printStackTrace();
         }
         
         System.out.println("(SPF execution not yet implemented)");
-        
         return new ArrayList<ConcreteInput>();
+    }
+    
+    public String transformIrToJpfCode(AtcClass atcClass) {
+        AtcClass symbolicIr = transformer.transform(atcClass);
+        return codeGenerator.generateSymbolicJavaFile(symbolicIr);
     }
     
     private void saveOutputFiles(String simpleJavaCode, String jpfCode, AtcClass atcClass) throws IOException {
@@ -330,34 +198,16 @@ public class SpfWrapper {
             System.out.println("Outputs directory already exists: " + outputDirFile.getAbsolutePath());
         }
         
-        String packageName = null;
-        String className = null;
-        String fullClassName = null;
-        List<String> testMethods = new ArrayList<>();
+        String packageName = atcClass.getPackageName();
+        String className = atcClass.getClassName();
+        String fullClassName = (packageName != null && !packageName.isEmpty()) 
+            ? packageName + "." + className 
+            : className;
         
-        if (atcClass != null) {
-            packageName = atcClass.getPackageName();
-            className = atcClass.getClassName();
-            fullClassName = (packageName != null && !packageName.isEmpty()) 
-                ? packageName + "." + className 
-                : className;
-            
-            for (AtcTestMethod method : atcClass.getTestMethods()) {
-                if (method.isTestAnnotated() && !method.isMain()) {
-                    testMethods.add(method.getMethodName());
-                }
-            }
-        } else {
-            String[] classInfo = extractClassInfo(simpleJavaCode);
-            if (classInfo != null) {
-                packageName = classInfo[0];
-                className = classInfo[1];
-                fullClassName = packageName + "." + className;
-                testMethods = extractTestMethods(simpleJavaCode);
-            } else {
-                className = "GeneratedATCs";
-                fullClassName = className;
-                testMethods = extractTestMethods(simpleJavaCode);
+        List<String> testMethods = new ArrayList<>();
+        for (AtcTestMethod method : atcClass.getTestMethods()) {
+            if (method.isTestAnnotated() && !method.isMain()) {
+                testMethods.add(method.getMethodName());
             }
         }
         
@@ -397,8 +247,6 @@ public class SpfWrapper {
             writer.write("public class Helper {\n");
             writer.write("    public static void appendExclamation(String s) {\n");
             writer.write("        if (s != null) {\n");
-            writer.write("            // Note: In real implementation, this would use StringBuilder or modify via wrapper\n");
-            writer.write("            // For test generation purposes, we just verify s != null\n");
             writer.write("        }\n");
             writer.write("    }\n\n");
             writer.write("    public static void increment(int[] x) {\n");
@@ -432,8 +280,8 @@ public class SpfWrapper {
         }
     }
     
-    public String getJpfCode(String simpleJavaCode) {
-        return transformToJpfCode(simpleJavaCode);
+    public String getJpfCode(AtcClass atcClass) {
+        return transformIrToJpfCode(atcClass);
     }
     
     public String generateJpfFile(String className, String methodName, String outputPath, 

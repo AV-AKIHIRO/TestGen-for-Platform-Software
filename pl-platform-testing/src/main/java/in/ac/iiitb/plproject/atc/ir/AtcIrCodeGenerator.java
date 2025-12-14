@@ -21,6 +21,14 @@ public class AtcIrCodeGenerator {
     }
 
     public String generateJavaFile(AtcClass atc) {
+        return generateJavaFileInternal(atc);
+    }
+
+    public String generateSymbolicJavaFile(AtcClass atc) {
+        return generateJavaFileInternal(atc);
+    }
+
+    private String generateJavaFileInternal(AtcClass atc) {
         stringBuilder = new StringBuilder();
 
         stringBuilder.append("package ").append(atc.getPackageName()).append(";\n\n");
@@ -49,9 +57,6 @@ public class AtcIrCodeGenerator {
 
     private void visit(AtcTestMethod method) {
         stringBuilder.append("\n");
-        if (method.isTestAnnotated()) {
-            stringBuilder.append(INDENT).append("@Test\n");
-        }
         stringBuilder.append(INDENT).append("public void ").append(method.getMethodName()).append("() {\n");
 
         Set<String> declaredVars = new HashSet<>();
@@ -171,7 +176,6 @@ public class AtcIrCodeGenerator {
     
     private void visitWithIndent(AtcAssumeStmt stmt, int indentLevel) {
         String condCode = AstHelper.exprToJavaCode(stmt.getCondition());
-        // Strip outer parentheses only for null checks
         if (condCode.startsWith("(") && condCode.endsWith(")") && condCode.length() > 2) {
             String inner = condCode.substring(1, condCode.length() - 1);
             if (inner.contains("null") && !inner.contains("(")) {
@@ -219,8 +223,34 @@ public class AtcIrCodeGenerator {
     }
     
     private void visitWithIndent(AtcSymbolicVarDecl stmt, int indentLevel) {
-        // Symbolic var decls shouldn't appear in if blocks, but handle it
-        visit((AtcSymbolicVarDecl) stmt);
+        for (int i = 0; i < indentLevel; i++) {
+            stringBuilder.append(INDENT);
+        }
+        
+        String typeName = stmt.getTypeName();
+        String varName = stmt.getVarName();
+        
+        if (TypeMapper.isCollectionType(typeName)) {
+            String genericType = TypeMapper.getGenericType(typeName);
+            stringBuilder.append(genericType).append(" ").append(varName)
+                         .append(" = (").append(genericType).append(") Symbolic.input(\"").append(varName).append("\");\n");
+        } else if (typeName.equalsIgnoreCase("int") || typeName.equals("Integer")) {
+            stringBuilder.append("int ").append(varName)
+                         .append(" = Symbolic.input(\"").append(varName).append("\");\n");
+        } else if (typeName.equalsIgnoreCase("double") || typeName.equals("Double")) {
+            stringBuilder.append("double ").append(varName)
+                         .append(" = Symbolic.input(\"").append(varName).append("\");\n");
+        } else if (typeName.equalsIgnoreCase("String")) {
+            stringBuilder.append("String ").append(varName)
+                         .append(" = Symbolic.input(\"").append(varName).append("\");\n");
+        } else if (typeName.equalsIgnoreCase("boolean") || typeName.equals("Boolean")) {
+            stringBuilder.append("boolean ").append(varName)
+                         .append(" = Symbolic.input(\"").append(varName).append("\");\n");
+        } else {
+            String genericType = TypeMapper.getGenericType(typeName);
+            stringBuilder.append(genericType).append(" ").append(varName)
+                         .append(" = (").append(genericType).append(") Symbolic.input(\"").append(varName).append("\");\n");
+        }
     }
 
     private void visit(AtcSymbolicVarDecl stmt) {
@@ -261,8 +291,6 @@ public class AtcIrCodeGenerator {
         String typeName = stmt.getTypeName();
         String varName = stmt.getVarName();
         
-        // Only transform if it's array type with parentheses syntax (new int[](arg))
-        // If it's already in brace syntax (new int[]{arg}), leave it as is
         if (typeName.endsWith("[]") && initCode.startsWith("new ") && 
             initCode.contains("(") && initCode.contains(")") && !initCode.contains("{")) {
             String baseType = typeName.substring(0, typeName.length() - 2);
@@ -293,11 +321,8 @@ public class AtcIrCodeGenerator {
 
     private void visit(AtcAssumeStmt stmt) {
         String condCode = AstHelper.exprToJavaCode(stmt.getCondition());
-        // Strip outer parentheses only for null checks (e.g., "(data != null)" -> "data != null")
-        // Keep parentheses for other comparisons (e.g., "(x > 0)" stays as "(x > 0)")
         if (condCode.startsWith("(") && condCode.endsWith(")") && condCode.length() > 2) {
             String inner = condCode.substring(1, condCode.length() - 1);
-            // Only strip if it's a null check (contains "null")
             if (inner.contains("null") && !inner.contains("(")) {
                 condCode = inner;
             }
@@ -308,24 +333,16 @@ public class AtcIrCodeGenerator {
 
     private void visit(AtcMethodCallStmt stmt) {
         String callCode = AstHelper.exprToJavaCode(stmt.getCallExpr());
-        // For println calls with string concatenation, strip outer parentheses for collections
-        // Pattern: System.out.println(("Test Input: data = " + data)) -> System.out.println("Test Input: data = " + data)
-        // For collections, we want: System.out.println("Test Input: data = " + data)
-        // For primitives, we want: System.out.println(("Test Input: x = " + x))
         if (callCode.contains("System.out.println") && callCode.contains("Test Input:")) {
-            // Check if it has double parentheses: println(("..."))
             java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("System\\.out\\.println\\(\\(([^)]+)\\)\\)");
             java.util.regex.Matcher matcher = pattern.matcher(callCode);
             if (matcher.find()) {
                 String inner = matcher.group(1);
-                // Extract variable name from the concatenation (e.g., "Test Input: data = " + data -> data)
                 java.util.regex.Pattern varPattern = java.util.regex.Pattern.compile("\"Test Input: [^=]+= \" \\+ ([a-zA-Z_][a-zA-Z0-9_]*)");
                 java.util.regex.Matcher varMatcher = varPattern.matcher(inner);
                 if (varMatcher.find()) {
                     String varName = varMatcher.group(1);
-                    // If variable name suggests a collection (data, result, map, set, list, etc.)
                     if (varName.matches("(data|result|map|set|list|collection|queue|deque)")) {
-                        // Strip outer parentheses: System.out.println(("...")) -> System.out.println("...")
                         callCode = "System.out.println(" + inner + ")";
                     }
                 }
@@ -383,11 +400,8 @@ public class AtcIrCodeGenerator {
         }
         
         String condCode = AstHelper.exprToJavaCode(processedCondition);
-        // Strip outer parentheses only for null checks (e.g., "(result != null)" -> "result != null")
-        // Keep parentheses for other comparisons (e.g., "(x > x_old)" stays as "(x > x_old)")
         if (condCode.startsWith("(") && condCode.endsWith(")") && condCode.length() > 2) {
             String inner = condCode.substring(1, condCode.length() - 1);
-            // Only strip if it's a null check (contains "null")
             if (inner.contains("null") && !inner.contains("(")) {
                 condCode = inner;
             }

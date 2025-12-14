@@ -29,13 +29,9 @@ public class TestGen {
         // 1. Generate the ATC IR structure
         AtcClass atcClass = this.genAtcAlgorithm.generateAtcFile(jmlSpecAst, testStringAst);
         
-        // 2. Convert IR to JavaFile string for SPF using the prettyPrint method
-        String javaCode = this.genAtcAlgorithm.prettyPrint(atcClass);
-        JavaFile atcJavaFile = new JavaFile(javaCode);
-        
-        // 3. Run symbolic execution on that file
-        // This calls the SPF wrapper, passing both the JavaFile and AtcClass for file generation
-        List<ConcreteInput> testInputs = this.symexWrapper.run(atcJavaFile, atcClass);
+        // 2. Run symbolic execution using IR directly (no string conversion needed)
+        // This uses the formal IR-based approach for transformation
+        List<ConcreteInput> testInputs = this.symexWrapper.run(atcClass);
         // 4. Plug back/return results
         return testInputs;
     }

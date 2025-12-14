@@ -8,8 +8,6 @@ import java.util.HashMap;
 public class Helper {
     public static void appendExclamation(String s) {
         if (s != null) {
-            // Note: In real implementation, this would use StringBuilder or modify via wrapper
-            // For test generation purposes, we just verify s != null
         }
     }
 

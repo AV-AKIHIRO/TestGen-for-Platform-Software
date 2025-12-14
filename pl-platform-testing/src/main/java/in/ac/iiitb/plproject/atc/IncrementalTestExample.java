@@ -67,7 +67,7 @@ public class IncrementalTestExample {
             
             // Create test string: test appendExclamation function
             TestStringAst testStringAst = new TestStringAst(
-                Arrays.asList("appendExclamation", "appendExclamation")
+                Arrays.asList("appendExclamation", "appendExclamation", "appendExclamation")
             );
             
             // Print the JML Spec AST for debugging
@@ -91,13 +91,10 @@ public class IncrementalTestExample {
             System.out.println(atcClass);
             System.out.println();
             
-            // Convert IR to Java code string for display using prettyPrint
-            String javaCode = genAtc.prettyPrint(atcClass);
-            
             // Use SpfWrapper to transform and save files (prints both simple and JPF versions, and saves to outputs/)
+            // Now using IR-based approach directly - no string conversion needed
             SpfWrapper spfWrapper = new SpfWrapper();
-            JavaFile javaFile = new JavaFile(javaCode);
-            spfWrapper.run(javaFile, atcClass);
+            spfWrapper.run(atcClass);
             
         } catch (Exception e) {
             System.err.println("Error in simple example: " + e.getMessage());
@@ -144,13 +141,10 @@ public class IncrementalTestExample {
             System.out.println(atcClass);
             System.out.println();
             
-            // Convert IR to Java code string for display using prettyPrint
-            String javaCode = genAtc.prettyPrint(atcClass);
-            
             // Use SpfWrapper to transform and save files (prints both simple and JPF versions, and saves to outputs/)
+            // Now using IR-based approach directly - no string conversion needed
             SpfWrapper spfWrapper = new SpfWrapper();
-            JavaFile javaFile = new JavaFile(javaCode);
-            spfWrapper.run(javaFile, atcClass);
+            spfWrapper.run(atcClass);
             
         } catch (Exception e) {
             System.err.println("Error in complex example: " + e.getMessage());
